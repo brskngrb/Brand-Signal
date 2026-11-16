@@ -1,6 +1,6 @@
 # Brand Signal
 
-Brand Signal（原 Bakery Clearly）是 Windows 本機品牌內容分析工作台，以鴻鼎菓子的官網、商品圖與彌月禮盒情境為範例。它把蒐集、商品建檔、內容改善與外部 AI 觀測放在同一個工作區。
+Brand Signal 是 Windows 本機品牌內容分析工作台，以鴻鼎菓子的官網、商品圖與彌月禮盒情境為範例。它把蒐集、商品建檔、內容改善與外部 AI 觀測放在同一個工作區。
 
 ## 在 Windows 啟動
 
