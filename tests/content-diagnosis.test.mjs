@@ -1,0 +1,10 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {validateAssessment,validateDraft} from '../scripts/content-diagnosis.mjs';
+import {readFile} from 'node:fs/promises';
+const facts=[{id:'shipping',value:'運費60元',quote:'運費60元'}];
+const assessment={pageType:'配送政策',readerQuestions:['超商配送費用多少？'],summary:'適用條件不足',findings:[{problem:'運費適用範圍不明',reason:'無法判斷適用地區',change:'補充運費表的地區欄',missing:'適用地區',factIds:['shipping']}]};
+const draft={priority:'high',impact:'顧客無法確認配送總價',problem:'運費適用範圍不明',reason:'無法判斷適用地區',readerQuestion:'超商配送費用多少？',placement:'運費表',format:'依通路與地區分列的文字表格',action:'在運費旁補上明確適用通路、地區；未知條件先請品牌確認',replacement:'',missing:'通路、地區及免運條件',verification:'用頁面文字確認費用與條件逐列配對',factIds:['shipping']};
+test('model assessment distinguishes purpose before generating draft',()=>{assert.equal(validateAssessment(assessment,facts).pageType,'配送政策');assert.throws(()=>validateAssessment({...assessment,pageType:''},facts));assert.throws(()=>validateAssessment({...assessment,findings:[{...assessment.findings[0],factIds:['invented']}]},facts))});
+test('raw OCR copies and repeated drafts cannot become recommendations',()=>{const result=validateDraft({summary:'運費診斷',suggestions:[{...draft,replacement:'運費60元'},draft,{...draft}]},assessment,facts);assert.equal(result.suggestions.length,1);assert.equal(result.rejected.length,2);assert.equal(result.suggestions[0].missing,draft.missing)});
+test('all visible advice surfaces use the new model workflow',async()=>{const source=await readFile(new URL('../src/app.js',import.meta.url),'utf8');const start=source.indexOf('function currentAdvicePanel()');const end=source.indexOf('function saveAdvice()',start);const code=source.slice(start,end);assert.match(code,/knowledgePanel/);assert.doesNotMatch(code,/return advicePanel|#agent-advice/)});

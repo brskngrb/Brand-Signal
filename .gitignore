@@ -1,0 +1,13 @@
+dist/
+site.tar.gz
+.env
+.env.*
+!.env.example
+*.log
+data/
+.runtime/
+__pycache__/
+*.pyc
+.openai/
+design-preview/
+node_modules/

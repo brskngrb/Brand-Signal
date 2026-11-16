@@ -1,0 +1,19 @@
+import {readFileSync,writeFileSync,copyFileSync,mkdirSync} from 'node:fs';
+import {DatabaseSync} from 'node:sqlite';
+import {createHash} from 'node:crypto';
+import assert from 'node:assert/strict';
+const dir='data/external-observations/',captured=JSON.parse(readFileSync(dir+'perplexity-20261111.json','utf8'));
+assert.ok(captured.answer.startsWith('符合「每盒'));assert.ok(captured.answer.includes('最符合你的預算與可試吃需求。'));assert.equal(captured.sources.length,22);
+const query='我想挑台灣烘焙品牌的彌月禮盒，每盒預算 500 元，希望能常溫保存、可以先試吃。有哪些選擇？請比較禮盒內容、價格、保存期限與試吃條件，附上可查核的來源。找不到的資訊請標示待確認。';
+const mention=/鴻鼎菓子|鴻鼎果子|鴻鼎|Hong Ding|idodo/i.test(captured.answer);
+const cited=captured.sources.some(s=>{const h=new URL(s.url).hostname;return h==='idodo.com.tw'||h.endsWith('.idodo.com.tw')});
+assert.equal(mention,false);assert.equal(cited,false);
+const common={date:'2026-11-11',query,promptId:'unbranded-baby-gift-1',promptVersion:'cookies-v2',promptType:'unbranded',phase:'baseline',round:1,source:'external_web',newConversation:true,webMode:'enabled',brand:'鴻鼎菓子',reviewer:'Codex',informationCorrect:null};
+const rows=[{...common,id:'perplexity-751069e1-b18e-4f13-b141-08fa399d6378',platform:'Perplexity 網頁版',model:'未顯示',status:'completed',answer:captured.answer,citations:captured.sources.map(s=>s.url),sourceUrl:captured.url,brandMentioned:mention,recommended:false,citationChecked:true,officialCited:cited,conditions:'未登入、搜尋模式、新工作階段、繁體中文、僅送出一次未指定品牌題目；未選購方案。模型未顯示。',reviewNotes:'完整正文未提及鴻鼎菓子及檢查別名，推薦郭元益、自然薇甜、香貝里。22 個來源無 idodo.com.tw。競品價格與食安資訊未逐項核實，不將資訊正確率標為通過。',capturedAt:captured.capturedAt,answerSha256:createHash('sha256').update(captured.answer).digest('hex')},
+{...common,id:'gemini-7a76f1982c56019f',platform:'Gemini 網頁版',model:'Gemini Flash-Lite',status:'cancelled',answer:'',sourceUrl:'https://gemini.google.com/app/7a76f1982c56019f',brandMentioned:null,recommended:null,citationChecked:null,officialCited:null,conditions:'新對話，畫面曾顯示正在搜尋網路；使用現有登入帳戶，未切換付費模式。',reviewNotes:'畫面顯示「你停止了這則回覆」，原因未確認；只生成部分內容，排除全部指標分母。',rawEvidence:'gemini-interrupted-20261111.txt'}];
+const db=new DatabaseSync('data/external-observations.sqlite');db.exec('CREATE TABLE IF NOT EXISTS observations(id TEXT PRIMARY KEY, body TEXT NOT NULL, saved_at TEXT NOT NULL)');const put=db.prepare('INSERT INTO observations VALUES(?,?,?) ON CONFLICT(id) DO UPDATE SET body=excluded.body');for(const row of rows)put.run(row.id,JSON.stringify(row),new Date().toISOString());const all=db.prepare('SELECT body FROM observations').all().map(r=>JSON.parse(r.body));db.close();
+const file='data/codex-system-audit.json';mkdirSync('data/backups/codex-audit',{recursive:true});copyFileSync(file,'data/backups/codex-audit/before-external-'+Date.now()+'.json');const audit=JSON.parse(readFileSync(file,'utf8'));audit.externalObservations=all;
+audit.externalGroups=[...new Set(all.map(r=>r.platform))].map(platform=>{const completed=all.filter(r=>r.platform===platform&&r.status==='completed');const stat=field=>{const valid=completed.filter(r=>typeof r[field]==='boolean');const yes=valid.filter(r=>r[field]).length;return {numerator:yes,denominator:valid.length,percent:valid.length?100*yes/valid.length:null}};return {platform,mention:stat('brandMentioned'),recommendation:stat('recommended'),citation:stat('officialCited'),excluded:all.filter(r=>r.platform===platform&&r.status!=='completed').length}});
+audit.answerMentionRate={...audit.externalGroups.find(g=>g.platform==='Perplexity 網頁版').mention,scope:'僅本次 Perplexity 未指定品牌彌月禮題目，單題單次，不代表整體品牌曝光率'};
+audit.limitations=audit.limitations.filter(t=>!t.includes('未新增盲測回答'));audit.limitations.push('外部網頁測試為 Perplexity 一題一次；Gemini 中止排除。各平台分開統計，不估計整體市場提及率。');
+writeFileSync(file,JSON.stringify(audit,null,2));writeFileSync(dir+'reviewed-observations.json',JSON.stringify(rows,null,2));console.log(JSON.stringify(audit.externalGroups));

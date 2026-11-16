@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#172922">
+  <meta name="description" content="AI Agent 品牌工作區：本地 Qwen3.5 4B 與 API 模型，整合 AI的烘焙口袋名單：是否同意Cookies 搜尋成效與內容優化。">
+  <title>AI的烘焙口袋名單：是否同意Cookies</title>
+  <script src="/theme.js"></script>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div id="app"></div>
+  <div id="toast" role="status" aria-live="polite"></div>
+  <dialog id="detail-dialog" aria-labelledby="dialog-title"></dialog>
+  <input id="import-file" type="file" accept=".json,.csv" hidden>
+  <script type="module" src="/app.js"></script>
+<dialog id="settings"><div class="dialog-head"><h2>外觀設定</h2><button class="icon-button" id="settings-close" aria-label="關閉設定">×</button></div><p>拖曳色餅調整主色，整頁配色會同步更新。</p><div class="wheel-wrap"><canvas id="color-wheel" width="280" height="280" aria-label="拖曳色餅選擇色相與飽和度"></canvas><span id="wheel-cursor"></span></div><div class="wheel-controls"><label for="brightness">明亮度</label><input id="brightness" type="range" min="0" max="100" value="100"><label for="wheel-hex">HEX</label><input id="wheel-hex" class="hex-input" maxlength="7" spellcheck="false" aria-describedby="wheel-error"><small id="wheel-error" hidden>請輸入 #RGB 或 #RRGGBB</small></div><div class="text-size"><label for="text-size">字型大小</label><output id="text-size-value" for="text-size">100%</output><input id="text-size" type="range" min="90" max="125" step="5" value="100"></div><div class="color-actions"><button class="button secondary" id="reset-colors">恢復預設</button><button class="button primary" id="finish-colors">完成</button></div><small class="color-hint">外觀設定會保存在此瀏覽器。</small></dialog>
+</body>
+</html>

@@ -1,0 +1,18 @@
+import {readFileSync,writeFileSync,mkdirSync} from 'node:fs';
+import {DatabaseSync} from 'node:sqlite';
+import {createHash} from 'node:crypto';
+import sharp from 'sharp';
+const root=process.cwd(), report={date:new Date().toISOString(),checks:[],limitations:[]};
+mkdirSync('data/test-results',{recursive:true});
+const save=()=>writeFileSync('data/test-results/full-test.json',JSON.stringify(report,null,2));
+async function check(name,fn){try{const detail=await fn();report.checks.push({name,status:'passed',detail});console.log('PASS '+name)}catch(e){report.checks.push({name,status:'failed',error:e.message});console.log('FAIL '+name+': '+e.message)}save()}
+for(const file of ['web-knowledge.sqlite','product-knowledge.sqlite','prototype-observations.sqlite'])await check(file,()=>{const db=new DatabaseSync('data/'+file,{readOnly:true});try{const integrity=db.prepare('PRAGMA integrity_check').all();if(JSON.stringify(integrity)!=='[{"integrity_check":"ok"}]')throw Error(JSON.stringify(integrity));return db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all().map(({name})=>({table:name,count:db.prepare('SELECT COUNT(*) AS n FROM "'+name+'"').get().n}))}finally{db.close()}});
+await check('all cached images decode and checksum',async()=>{const manifest=JSON.parse(readFileSync('data/image-downloads/manifest.json'));const errors=[];for(const item of manifest.images){try{const b=readFileSync(item.localPath);if(item.sha256&&createHash('sha256').update(b).digest('hex')!==item.sha256)throw Error('checksum');await sharp(b).metadata()}catch(e){errors.push({url:item.url,error:e.message})}}if(errors.length)throw Error(JSON.stringify(errors));return {count:manifest.images.length}});
+const session=JSON.parse(readFileSync('.runtime/web-session.json','utf8').replace(/^\uFEFF/,'')),base='http://127.0.0.1:'+session.port;
+async function api(path,body){const r=await fetch(base+path,body?{method:'POST',headers:{'content-type':'application/json','x-agent-settings':'1'},body:JSON.stringify(body)}:{});const value=await r.json();if(!r.ok)throw Error(r.status+' '+JSON.stringify(value));return value}
+for(const path of ['/api/health','/api/prototype-observation','/api/one-click','/api/catalog','/api/knowledge','/api/library?domain=idodo.com.tw&limit=100'])await check('HTTP '+path,async()=>{const v=await api(path);if(path.includes('prototype')){if(v.queries.length!==20||!v.rows.length)throw Error('missing history');report.limitations.push(v.configured?'Tavily configured, live search not called':'Tavily key missing; archived observations tested, live search unavailable');return {queries:v.queries.length,history:v.rows.length}}return {keys:Object.keys(v),pages:v.pages?.length,facts:v.facts?.length,reports:v.reports?.length}});
+await check('local model connection',()=>api('/api/local/connectivity',{model:'qwen3.6:35b'}));
+const library=await api('/api/library?domain=idodo.com.tw&limit=100');const page=library.pages.find(p=>/product\d+\.html/.test(p.url));
+await check('live local analysis using saved product',async()=>{const v=await api('/api/local',{mode:'observe',model:'qwen3.6:35b',brand:'鴻鼎菓子',keyword:'商品資訊查核',question:'請以三句話指出本商品明確記載的資訊及一項需要確認的資訊，附提供的來源網址。',content:JSON.stringify({retrievedPages:[{url:page.url,title:page.title,content:page.content?.slice(0,3500),imageText:page.imageText?.slice(0,1500)}]})});if(!v.result?.answer)throw Error('empty answer');return v});
+await check('unload model after tests',async()=>{const r=await fetch('http://127.0.0.1:11434/api/generate',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({model:'qwen3.6:35b',keep_alive:0})});if(!r.ok)throw Error('unload failed');return await r.json()});
+save();
