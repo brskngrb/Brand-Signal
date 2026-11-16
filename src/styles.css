@@ -718,3 +718,8 @@ details.knowledge-row,details.knowledge-row:first-child{padding:0}
  #knowledge-workflow .product-specs .product-fact dd{margin:0}
 }
 
+
+.appearance-mode{display:flex;align-items:center;gap:8px;margin-top:12px}
+:root[data-theme="dark"] #settings{background:var(--surface);color:var(--ink)}
+:root[data-theme="dark"] .workspace-shell .btn.primary{background:var(--green);border-color:var(--green);color:var(--button-ink)}
+

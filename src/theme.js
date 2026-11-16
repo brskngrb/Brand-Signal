@@ -1,6 +1,9 @@
 document.addEventListener('DOMContentLoaded', () => {
 const root = document.documentElement;
-root.dataset.theme = 'light';
+const modeKey = 'signal.appearance-mode';
+const darkToggle = document.querySelector('#appearance-dark');
+try { darkToggle.checked = localStorage.getItem(modeKey) === 'dark'; } catch {}
+root.dataset.theme = darkToggle.checked ? 'dark' : 'light';
 const dialog=document.querySelector('#settings');
 const palette=[['--bg','頁面背景','#f7f8f2'],['--surface','卡片背景','#fffefa'],['--ink','主要文字','#203b30'],['--muted','次要文字','#78867c'],['--green','按鈕與主色','#295640'],['--line','邊框','#dfe5db'],['--soft','柔和底色','#f0f3e9'],['--side','側欄背景','#19372c']];
 let colors={};try{colors=JSON.parse(localStorage.getItem('signal.appearance-colors')||'{}')||{}}catch{}
@@ -27,8 +30,22 @@ function applyTheme(hex) {
     '--soft': mix(light, .91), '--side': mix(dark, .55),
     '--active-nav': mix(light, .83)
   };
+  if (darkToggle.checked) {
+    Object.assign(theme, {
+      '--bg': mix(dark, .93), '--surface': mix(dark, .82),
+      '--surface-raised': mix(dark, .72), '--ink': mix(light, .96),
+      '--muted': mix(light, .72), '--line': mix(light, .27),
+      '--soft': mix(dark, .72), '--side': mix(dark, .65),
+      '--active-nav': mix(dark, .55)
+    });
+  }
   Object.entries(theme).forEach(([key, color]) => applyColor(key, color));
 }
+darkToggle.addEventListener('change', () => {
+  root.dataset.theme = darkToggle.checked ? 'dark' : 'light';
+  applyTheme(colors[selected]);
+  try { localStorage.setItem(modeKey, root.dataset.theme); } catch {}
+});
 function commit() {
   const hex = '#' + hsv(hue, saturation, value).map(n => n.toString(16).padStart(2, '0')).join('');
   applyTheme(hex);
@@ -55,6 +72,8 @@ hexField.oninput=()=>{let hex=hexField.value.trim();if(!hex.startsWith('#'))hex=
 document.querySelector('#settings-close').onclick=()=>dialog.close();document.querySelector('#finish-colors').onclick=()=>dialog.close();
 const defaultColor = '#295640';
 document.querySelector('#reset-colors').onclick = () => {
+  darkToggle.checked = false;
+  darkToggle.dispatchEvent(new Event('change'));
   select(defaultColor);
   saveColors();
 };
